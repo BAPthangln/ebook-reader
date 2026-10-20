@@ -7,6 +7,7 @@ import {
   CloudDownload,
   Trash2,
   FileText,
+  Sparkles,
 } from 'lucide-react'
 
 interface BookCardProps {
@@ -22,56 +23,56 @@ export const BookCard: React.FC<BookCardProps> = ({ book, progress }) => {
   const getFormatBadgeColor = () => {
     switch (book.format) {
       case 'epub':
-        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+        return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
       case 'pdf':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+        return 'bg-rose-500/15 text-rose-300 border-rose-500/30'
       case 'mobi':
       case 'azw':
       case 'azw2':
       case 'azw3':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
       case 'cbz':
-        return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+        return 'bg-purple-500/15 text-purple-300 border-purple-500/30'
       default:
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+        return 'bg-blue-500/15 text-blue-300 border-blue-500/30'
     }
   }
 
   const getFormatCoverGradient = () => {
     switch (book.format) {
       case 'epub':
-        return 'from-emerald-900/60 to-slate-900'
+        return 'from-emerald-950 via-slate-900 to-teal-950'
       case 'pdf':
-        return 'from-rose-950/60 to-slate-900'
+        return 'from-rose-950 via-slate-900 to-red-950'
       case 'mobi':
       case 'azw':
       case 'azw2':
       case 'azw3':
-        return 'from-amber-950/60 to-slate-900'
+        return 'from-amber-950 via-slate-900 to-yellow-950'
       default:
-        return 'from-blue-950/60 to-slate-900'
+        return 'from-blue-950 via-slate-900 to-indigo-950'
     }
   }
 
   return (
-    <div className="group relative bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-blue-500/50 rounded-2xl p-3 flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-blue-900/10 hover:-translate-y-1">
-      {/* Book Cover Container */}
+    <div className="group relative flex flex-col transition-all duration-300">
+      {/* 3D Book Cover Card */}
       <div
         onClick={() => openBook(book)}
-        className={`relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer bg-gradient-to-br ${getFormatCoverGradient()} border border-slate-700/40 p-4 flex flex-col justify-between shadow-inner`}
+        className={`relative aspect-[3/4.2] rounded-2xl overflow-hidden cursor-pointer bg-gradient-to-br ${getFormatCoverGradient()} border border-white/10 p-3.5 flex flex-col justify-between book-spine-3d group-hover:-translate-y-2 group-hover:rotate-0.5 transition-all duration-300 shadow-xl group-hover:shadow-2xl group-hover:shadow-blue-500/10`}
       >
-        {/* Top badges */}
+        {/* Top Badges */}
         <div className="flex items-center justify-between w-full z-10">
           <span
-            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border backdrop-blur-md ${getFormatBadgeColor()}`}
+            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border backdrop-blur-md ${getFormatBadgeColor()}`}
           >
             {book.format}
           </span>
 
           {book.isOffline ? (
             <span
-              className="p-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-              title="Đã tải về máy - Đọc không cần mạng"
+              className="p-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm"
+              title="Đã lưu offline trong máy"
             >
               <CloudCheck className="w-3.5 h-3.5" />
             </span>
@@ -83,8 +84,8 @@ export const BookCard: React.FC<BookCardProps> = ({ book, progress }) => {
                   downloadForOffline(book)
                 }}
                 disabled={isDownloading}
-                title="Tải về máy để đọc offline"
-                className="p-1 rounded-full bg-slate-900/70 hover:bg-blue-600 text-slate-300 hover:text-white border border-slate-600/40 transition-colors"
+                title="Tải về máy để đọc không cần mạng"
+                className="p-1 rounded-full bg-black/40 hover:bg-blue-600 text-slate-300 hover:text-white border border-white/10 backdrop-blur-md transition-colors"
               >
                 <CloudDownload className="w-3.5 h-3.5" />
               </button>
@@ -92,65 +93,72 @@ export const BookCard: React.FC<BookCardProps> = ({ book, progress }) => {
           )}
         </div>
 
-        {/* Center Book Art Icon */}
-        <div className="my-auto flex flex-col items-center justify-center text-center px-2">
+        {/* Center Artwork / Title */}
+        <div className="my-auto flex flex-col items-center justify-center text-center px-1">
           {book.coverUrl ? (
             <img
               src={book.coverUrl}
               alt={book.title}
-              className="w-full h-full object-cover rounded-lg"
+              className="w-full h-full object-cover rounded-lg shadow"
             />
           ) : (
             <>
-              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <div className="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-2.5 group-hover:scale-110 group-hover:bg-white/10 transition-all shadow-inner">
                 {book.format === 'pdf' ? (
-                  <FileText className="w-6 h-6 text-rose-400" />
+                  <FileText className="w-5 h-5 text-rose-400" />
                 ) : (
-                  <BookOpen className="w-6 h-6 text-blue-400" />
+                  <BookOpen className="w-5 h-5 text-blue-400" />
                 )}
               </div>
-              <p className="text-xs font-semibold text-slate-200 line-clamp-3 leading-tight">
+              <p className="text-xs font-bold text-white line-clamp-3 leading-snug drop-shadow-sm">
                 {book.title}
               </p>
             </>
           )}
         </div>
 
-        {/* Bottom spine effect */}
-        <div className="w-full pt-2">
-          {percentage > 0 && (
-            <div className="w-full">
-              <div className="flex items-center justify-between text-[10px] text-slate-300 mb-1">
-                <span>Tiến độ</span>
+        {/* Bottom Progress Bar */}
+        <div className="w-full pt-1.5 z-10">
+          {percentage > 0 ? (
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium mb-1">
+                <span className="flex items-center space-x-1">
+                  <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                  <span>Đã đọc</span>
+                </span>
                 <span className="font-bold text-blue-400">{percentage}%</span>
               </div>
-              <div className="w-full h-1.5 bg-slate-900/80 rounded-full overflow-hidden">
+              <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/10">
                 <div
-                  className="h-full bg-blue-500 rounded-full"
+                  className="h-full bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"
                   style={{ width: `${percentage}%` }}
                 />
               </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <span className="text-[10px] text-slate-400/80 italic">Chưa đọc</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Book Metadata Bottom */}
+      {/* Book Metadata Below Cover */}
       <div className="mt-3 px-1 flex items-start justify-between">
         <div className="overflow-hidden flex-1 pr-2">
           <h4
             onClick={() => openBook(book)}
-            className="text-sm font-semibold text-slate-100 truncate cursor-pointer hover:text-blue-400 transition-colors"
+            className="text-xs font-semibold text-slate-200 truncate cursor-pointer hover:text-blue-400 transition-colors"
             title={book.title}
           >
             {book.title}
           </h4>
-          <p className="text-xs text-slate-400 truncate">
+          <p className="text-[11px] text-slate-400 truncate mt-0.5">
             {book.author || (book.isOffline ? 'Bộ nhớ máy' : 'Google Drive')}
           </p>
         </div>
 
-        {/* Delete button */}
+        {/* Delete Quick Action */}
         <button
           onClick={(e) => {
             e.stopPropagation()
@@ -159,7 +167,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, progress }) => {
             }
           }}
           title="Xóa khỏi thư viện"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-700/60 transition-colors opacity-0 group-hover:opacity-100"
+          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

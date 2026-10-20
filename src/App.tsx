@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Navbar } from './components/Navbar'
 import { LibraryFilters } from './components/Library/LibraryFilters'
 import { BookGrid } from './components/Library/BookGrid'
+import { ContinueReadingHero } from './components/Library/ContinueReadingHero'
 import { ReaderContainer } from './components/Reader/ReaderContainer'
 import { GoogleDriveModal } from './components/GoogleDriveModal'
 import { GoogleConfigModal } from './components/GoogleConfigModal'
@@ -45,7 +46,7 @@ export const App: React.FC = () => {
   const errorMessage = bookError || authError
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen ambient-bg text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* If reading a book, show ReaderContainer */}
       {activeBook ? (
         <ReaderContainer />
@@ -57,25 +58,28 @@ export const App: React.FC = () => {
             onOpenConfigModal={() => setIsConfigModalOpen(true)}
           />
 
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
             {/* Error toast banner if any */}
             {errorMessage && (
-              <div className="mb-6 p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 flex items-center justify-between text-xs animate-in fade-in">
-                <div className="flex items-center space-x-2">
+              <div className="mb-6 p-4 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 flex items-center justify-between text-xs animate-in fade-in shadow-xl backdrop-blur-md">
+                <div className="flex items-center space-x-2.5">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{errorMessage}</span>
+                  <span className="font-medium">{errorMessage}</span>
                 </div>
                 <button
                   onClick={() => {
                     clearBookError()
                     clearAuthError()
                   }}
-                  className="p-1 text-rose-400 hover:text-rose-200"
+                  className="p-1 rounded-lg text-rose-400 hover:text-white hover:bg-rose-900/40 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
+
+            {/* Spotlight Banner: Continue Reading */}
+            <ContinueReadingHero />
 
             {/* Library filters and book grid */}
             <LibraryFilters />
