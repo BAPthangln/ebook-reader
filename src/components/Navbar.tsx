@@ -7,10 +7,10 @@ import {
   Cloud,
   RefreshCw,
   Plus,
-  Key,
   Download,
   LogOut,
   ChevronDown,
+  Settings,
 } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -28,7 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenConfigModal,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { user, login, logout, isLoading: isAuthLoading } = useAuthStore()
+  const { user, clientId, login, logout, isLoading: isAuthLoading } = useAuthStore()
   const { importLocalFile, loadBooks } = useBookStore()
 
   const [isSyncing, setIsSyncing] = useState(false)
@@ -71,6 +71,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       for (let i = 0; i < e.target.files.length; i++) {
         importLocalFile(e.target.files[i])
       }
+    }
+  }
+
+  // Handle Google Drive connect button
+  const handleConnectClick = () => {
+    if (!clientId || clientId.trim() === '') {
+      onOpenConfigModal()
+    } else {
+      login()
     }
   }
 
@@ -145,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </>
           ) : (
             <button
-              onClick={login}
+              onClick={handleConnectClick}
               disabled={isAuthLoading}
               title="Đăng nhập tài khoản Google"
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold transition-all flex items-center space-x-2 shadow-lg shadow-blue-500/25 hover:scale-102 active:scale-98"
@@ -154,15 +163,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{isAuthLoading ? 'Đang kết nối...' : 'Kết nối Google Drive'}</span>
             </button>
           )}
-
-          {/* Config Google API Key/ID */}
-          <button
-            onClick={onOpenConfigModal}
-            title="Cài đặt Google OAuth & Client ID"
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10 transition-all"
-          >
-            <Key className="w-4 h-4" />
-          </button>
 
           {/* PWA Install Button if available */}
           {installPrompt && (
@@ -214,6 +214,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <Cloud className="w-4 h-4 text-blue-400" />
                     <span>Kho sách Google Drive</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      onOpenConfigModal()
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center space-x-2.5 transition-colors"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    <span>Cài đặt kết nối</span>
                   </button>
 
                   <button

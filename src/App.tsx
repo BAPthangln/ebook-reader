@@ -83,7 +83,10 @@ export const App: React.FC = () => {
 
             {/* Library filters and book grid */}
             <LibraryFilters />
-            <BookGrid onOpenDriveModal={() => setIsDriveModalOpen(true)} />
+            <BookGrid
+              onOpenDriveModal={() => setIsDriveModalOpen(true)}
+              onOpenConfigModal={() => setIsConfigModalOpen(true)}
+            />
           </main>
 
           {/* Modals */}

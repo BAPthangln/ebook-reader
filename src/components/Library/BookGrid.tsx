@@ -6,9 +6,13 @@ import type { Book } from '../../types'
 
 interface BookGridProps {
   onOpenDriveModal: () => void
+  onOpenConfigModal?: () => void
 }
 
-export const BookGrid: React.FC<BookGridProps> = ({ onOpenDriveModal }) => {
+export const BookGrid: React.FC<BookGridProps> = ({
+  onOpenDriveModal,
+  onOpenConfigModal,
+}) => {
   const {
     books,
     progressMap,
@@ -71,7 +75,12 @@ export const BookGrid: React.FC<BookGridProps> = ({ onOpenDriveModal }) => {
   }, [books, progressMap, filterFormat, filterStatus, searchQuery, sortBy])
 
   if (books.length === 0) {
-    return <EmptyState onOpenDriveModal={onOpenDriveModal} />
+    return (
+      <EmptyState
+        onOpenDriveModal={onOpenDriveModal}
+        onOpenConfigModal={onOpenConfigModal}
+      />
+    )
   }
 
   if (filteredBooks.length === 0) {
