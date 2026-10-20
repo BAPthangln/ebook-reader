@@ -16,7 +16,7 @@ import { AlertCircle, X } from 'lucide-react'
 
 export const App: React.FC = () => {
   const { activeBook, books, loadBooks, error: bookError, clearError: clearBookError } = useBookStore()
-  const { user, error: authError, clearError: clearAuthError } = useAuthStore()
+  const { user, initAuth, error: authError, clearError: clearAuthError } = useAuthStore()
 
   const [isDriveModalOpen, setIsDriveModalOpen] = useState(false)
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
@@ -26,10 +26,11 @@ export const App: React.FC = () => {
     progress: ReadingProgress
   } | null>(null)
 
-  // Initial load
+  // Initial load: load books from IndexedDB and init auth from Worker
   useEffect(() => {
     loadBooks()
-  }, [loadBooks])
+    initAuth()
+  }, [loadBooks, initAuth])
 
   // Check cloud sync on mount or when user logs in
   useEffect(() => {

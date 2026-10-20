@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { GoogleUser } from '../types'
-import { requestGoogleLogin } from '../services/googleAuth'
+import { requestGoogleLogin, fetchGoogleUserProfile } from '../services/googleAuth'
 
 interface AuthStore {
   user: GoogleUser | null
@@ -8,6 +8,7 @@ interface AuthStore {
   apiKey: string
   isLoading: boolean
   error: string | null
+  initAuth: () => Promise<void>
   setClientId: (clientId: string) => void
   setApiKey: (apiKey: string) => void
   login: () => Promise<void>
@@ -46,6 +47,54 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     '',
   isLoading: false,
   error: null,
+
+  initAuth: async () => {
+    // 1. Check if redirected back with OAuth access_token in URL hash
+    if (window.location.hash.includes('access_token=')) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const expiresInStr = hashParams.get('expires_in')
+        const expiresIn = expiresInStr ? parseInt(expiresInStr, 10) : 3600
+
+        if (accessToken) {
+          const profile = await fetchGoogleUserProfile(accessToken)
+          const user: GoogleUser = {
+            accessToken,
+            expiresAt: Date.now() + expiresIn * 1000,
+            email: profile.email || 'user@gmail.com',
+            name: profile.name || 'Google User',
+            picture: profile.picture || '',
+          }
+          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user))
+          set({ user })
+          // Clean hash from address bar
+          window.history.replaceState(null, '', window.location.pathname)
+          return
+        }
+      } catch (err) {
+        console.warn('Lỗi xử lý OAuth redirect hash:', err)
+      }
+    }
+
+    // 2. Fetch Client ID and API Key from OAuth Cloudflare Worker if not yet set
+    try {
+      const res = await fetch('/api/auth/config')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.clientId && !get().clientId) {
+          localStorage.setItem(STORAGE_CLIENT_ID_KEY, data.clientId)
+          set({ clientId: data.clientId })
+        }
+        if (data.apiKey && !get().apiKey) {
+          localStorage.setItem(STORAGE_API_KEY_KEY, data.apiKey)
+          set({ apiKey: data.apiKey })
+        }
+      }
+    } catch {
+      // Offline or local dev without worker
+    }
+  },
 
   setClientId: (clientId: string) => {
     localStorage.setItem(STORAGE_CLIENT_ID_KEY, clientId)
