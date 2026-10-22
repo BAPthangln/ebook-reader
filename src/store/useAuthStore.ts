@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import type { GoogleUser } from '../types'
-import { fetchGoogleUserProfile } from '../services/googleAuth'
+import { requestGoogleLogin, fetchGoogleUserProfile } from '../services/googleAuth'
+
+const DEFAULT_CLIENT_ID =
+  '485413776898-gff8sr45e05cjvn5vmt4ot34eh3bvc22.apps.googleusercontent.com'
 
 interface AuthStore {
   user: GoogleUser | null
@@ -13,6 +16,7 @@ interface AuthStore {
   setClientId: (clientId: string) => void
   setApiKey: (apiKey: string) => void
   login: () => Promise<void>
+  loginWithGIS: (clientId: string) => Promise<void>
   refreshAccessToken: () => Promise<string | null>
   getValidAccessToken: () => Promise<string | null>
   logout: () => void
@@ -28,7 +32,6 @@ function getInitialUser(): GoogleUser | null {
     const raw = localStorage.getItem(STORAGE_USER_KEY)
     if (raw) {
       const user = JSON.parse(raw) as GoogleUser
-      // Return user if valid or has refresh token
       if (user.refreshToken || (user.expiresAt && user.expiresAt > Date.now())) {
         return user
       }
@@ -44,7 +47,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   clientId:
     localStorage.getItem(STORAGE_CLIENT_ID_KEY) ||
     import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-    '',
+    DEFAULT_CLIENT_ID,
   apiKey:
     localStorage.getItem(STORAGE_API_KEY_KEY) ||
     import.meta.env.VITE_GOOGLE_API_KEY ||
@@ -172,7 +175,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return user.accessToken
     }
 
-    // Attempt token refresh
+    // Attempt token refresh if available
     if (user.refreshToken) {
       const refreshed = await refreshAccessToken()
       if (refreshed) return refreshed
@@ -191,71 +194,87 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ apiKey })
   },
 
+  loginWithGIS: async (clientId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const activeClientId = clientId || DEFAULT_CLIENT_ID
+      requestGoogleLogin(
+        activeClientId,
+        (user) => {
+          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user))
+          set({ user, isLoading: false, error: null })
+          resolve()
+        },
+        (errorMsg) => {
+          set({ isLoading: false, error: errorMsg })
+          resolve()
+        }
+      )
+    })
+  },
+
   login: async () => {
+    const { clientId, isWorkerConfigured } = get()
     set({ isLoading: true, error: null })
 
-    return new Promise((resolve) => {
-      // Check if Worker OAuth is available
-      const loginUrl = `/api/auth/login?return_to=${encodeURIComponent(
-        window.location.origin
-      )}&mode=popup`
-
-      // Open OAuth popup window centered on screen
-      const width = 500
-      const height = 650
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
-
-      const popup = window.open(
-        loginUrl,
-        'google_oauth_login',
-        `width=${width},height=${height},left=${left},top=${top},status=0,toolbar=0,menubar=0`
-      )
-
-      // Fallback: If popup is blocked by browser, perform full redirect
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        window.location.href = `/api/auth/login?return_to=${encodeURIComponent(
+    // If Worker BFF is fully configured, try Worker popup flow first
+    if (isWorkerConfigured) {
+      return new Promise<void>((resolve) => {
+        const loginUrl = `/api/auth/login?return_to=${encodeURIComponent(
           window.location.origin
-        )}&mode=redirect`
-        return
-      }
+        )}&mode=popup`
 
-      // Popup opened successfully: Listen for message from popup
-      let popupTimer: ReturnType<typeof setInterval> | null = null
+        const width = 500
+        const height = 650
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
 
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-          window.removeEventListener('message', handleMessage)
-          if (popupTimer) clearInterval(popupTimer)
+        const popup = window.open(
+          loginUrl,
+          'google_oauth_login',
+          `width=${width},height=${height},left=${left},top=${top},status=0,toolbar=0,menubar=0`
+        )
 
-          const authUser = event.data.data as GoogleUser
-          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(authUser))
-          set({ user: authUser, isLoading: false, error: null })
-          resolve()
-        } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
-          window.removeEventListener('message', handleMessage)
-          if (popupTimer) clearInterval(popupTimer)
-
-          set({
-            isLoading: false,
-            error: event.data.error || 'Đăng nhập Google thất bại.',
-          })
-          resolve()
+        // Fallback: If popup is blocked or fails, use GIS
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          get().loginWithGIS(clientId).then(resolve)
+          return
         }
-      }
 
-      window.addEventListener('message', handleMessage)
+        let popupTimer: ReturnType<typeof setInterval> | null = null
 
-      // Detect if user manually closed the popup without completing login
-      popupTimer = setInterval(() => {
-        if (popup.closed) {
-          if (popupTimer) clearInterval(popupTimer)
-          window.removeEventListener('message', handleMessage)
-          set({ isLoading: false })
-          resolve()
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+            window.removeEventListener('message', handleMessage)
+            if (popupTimer) clearInterval(popupTimer)
+
+            const authUser = event.data.data as GoogleUser
+            localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(authUser))
+            set({ user: authUser, isLoading: false, error: null })
+            resolve()
+          } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+            window.removeEventListener('message', handleMessage)
+            if (popupTimer) clearInterval(popupTimer)
+
+            // If worker OAuth had an issue, smoothly fallback to GIS
+            get().loginWithGIS(clientId).then(resolve)
+          }
         }
-      }, 500)
-    })
+
+        window.addEventListener('message', handleMessage)
+
+        popupTimer = setInterval(() => {
+          if (popup.closed) {
+            if (popupTimer) clearInterval(popupTimer)
+            window.removeEventListener('message', handleMessage)
+            set({ isLoading: false })
+            resolve()
+          }
+        }, 500)
+      })
+    }
+
+    // Direct & Instant: Use Google Identity Services SDK
+    return get().loginWithGIS(clientId)
   },
 
   logout: () => {

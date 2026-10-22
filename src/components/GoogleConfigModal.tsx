@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/useAuthStore'
 import {
   X,
   Cloud,
-  ExternalLink,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
@@ -26,17 +25,14 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
 }) => {
   const {
     clientId,
-    apiKey,
     isWorkerConfigured,
     setClientId,
-    setApiKey,
     login,
     initAuth,
     isLoading,
   } = useAuthStore()
 
   const [inputClientId, setInputClientId] = useState(clientId)
-  const [inputApiKey, setInputApiKey] = useState(apiKey)
   const [showManualInputs, setShowManualInputs] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -71,9 +67,6 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
     // If manual client ID was typed, save it
     if (inputClientId && inputClientId.trim() !== '') {
       setClientId(inputClientId.trim())
-    }
-    if (inputApiKey && inputApiKey.trim() !== '') {
-      setApiKey(inputApiKey.trim())
     }
 
     try {
