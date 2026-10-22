@@ -30,5 +30,14 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
       }
     })
-  ]
+  ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://ebook-reader.tqttno1.workers.dev',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
 })

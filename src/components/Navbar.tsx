@@ -28,7 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenConfigModal,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { user, clientId, login, logout, isLoading: isAuthLoading } = useAuthStore()
+  const { user, isWorkerConfigured, clientId, login, logout, isLoading: isAuthLoading } = useAuthStore()
   const { importLocalFile, loadBooks } = useBookStore()
 
   const [isSyncing, setIsSyncing] = useState(false)
@@ -76,10 +76,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Handle Google Drive connect button
   const handleConnectClick = () => {
-    if (!clientId || clientId.trim() === '') {
-      onOpenConfigModal()
-    } else {
+    if (isWorkerConfigured || (clientId && clientId.trim() !== '')) {
       login()
+    } else {
+      onOpenConfigModal()
     }
   }
 

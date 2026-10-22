@@ -64,6 +64,7 @@ export interface GoogleUser {
   picture: string
   accessToken: string
   expiresAt: number
+  refreshToken?: string
 }
 
 export interface SyncState {

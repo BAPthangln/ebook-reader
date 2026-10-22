@@ -13,15 +13,15 @@ export const AuthLandingCard: React.FC<AuthLandingCardProps> = ({
   onSkipToOffline,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { clientId, login, isLoading } = useAuthStore()
+  const { isWorkerConfigured, clientId, login, isLoading } = useAuthStore()
   const { importLocalFile, addBook } = useBookStore()
 
   const handleLoginClick = () => {
-    // If clientId is already set (e.g. from env), start login directly
-    if (clientId && clientId.trim() !== '') {
+    // If Cloudflare Worker has OAuth credentials or client ID is configured, launch login
+    if (isWorkerConfigured || (clientId && clientId.trim() !== '')) {
       login()
     } else {
-      // If not configured yet, open modal to configure and connect
+      // If Worker secrets not yet added, show admin setup guide modal
       onOpenConfigModal()
     }
   }
