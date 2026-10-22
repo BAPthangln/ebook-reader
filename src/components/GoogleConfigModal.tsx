@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import {
   X,
@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Loader2,
   Key,
+  RefreshCw,
 } from 'lucide-react'
 
 interface GoogleConfigModalProps {
@@ -38,6 +39,29 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
   const [inputApiKey, setInputApiKey] = useState(apiKey)
   const [showManualInputs, setShowManualInputs] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [detectedKeys, setDetectedKeys] = useState<string[]>([])
+  const [lastChecked, setLastChecked] = useState<string>('')
+
+  // Check config when modal opens
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch('/api/auth/config')
+      if (res.ok) {
+        const data = await res.json()
+        setDetectedKeys(data.detectedKeys || [])
+        setLastChecked(new Date().toLocaleTimeString('vi-VN'))
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchStatus()
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -62,7 +86,13 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
   }
 
   const handleRefreshStatus = async () => {
-    await initAuth()
+    setIsRefreshing(true)
+    try {
+      await fetchStatus()
+      await initAuth()
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 300)
+    }
   }
 
   return (
@@ -109,16 +139,31 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             )}
             <div className="flex-1">
-              <p className="font-semibold text-sm">
-                {isWorkerConfigured
-                  ? 'BFF OAuth Server: Đã kích hoạt'
-                  : 'BFF OAuth Server: Chưa cấu hình Secrets'}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-sm">
+                  {isWorkerConfigured
+                    ? 'BFF OAuth Server: Đã kích hoạt'
+                    : 'BFF OAuth Server: Chưa nhận được Secrets'}
+                </p>
+                {lastChecked && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {lastChecked}
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] mt-1 text-slate-300 leading-relaxed">
                 {isWorkerConfigured
-                  ? 'Tài khoản người dùng sẽ đăng nhập 1-chạm mà không cần nhập bất kỳ Client ID nào. Dữ liệu được bảo mật qua Cloudflare Worker.'
-                  : 'Cần cấu hình biến môi trường GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET trên Cloudflare Worker để người dùng đăng nhập tự động.'}
+                  ? 'Tài khoản người dùng sẽ đăng nhập 1-chạm mà không cần nhập bất kỳ Client ID nào.'
+                  : 'Cloudflare Worker chưa tìm thấy biến GOOGLE_CLIENT_ID trong môi trường chạy.'}
               </p>
+              <div className="mt-2 text-[10px] text-slate-400 font-mono bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                Biến Worker nhận diện được:{' '}
+                {detectedKeys.length > 0 ? (
+                  <span className="text-emerald-400 font-bold">{detectedKeys.join(', ')}</span>
+                ) : (
+                  <span className="text-rose-400 font-bold">Trống (0 biến)</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -126,62 +171,51 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
           <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/5 text-xs text-slate-300 space-y-3">
             <div className="flex items-center space-x-1.5 font-semibold text-blue-400">
               <ShieldCheck className="w-4 h-4" />
-              <span>Hướng dẫn cấu hình dành cho Quản trị viên (1 lần duy nhất):</span>
+              <span>Kiểm tra lại trên Cloudflare Dashboard:</span>
             </div>
             <ol className="list-decimal list-inside space-y-2 text-slate-400 pl-1 leading-relaxed">
               <li>
-                Vào{' '}
-                <a
-                  href="https://console.cloud.google.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-400 underline inline-flex items-center hover:text-blue-300"
-                >
-                  Google Cloud Console <ExternalLink className="w-3 h-3 ml-0.5" />
-                </a>{' '}
-                ➜ Tạo OAuth Client ID (loại Web Application).
+                Vào <strong>Cloudflare Dashboard</strong> ➔ <strong>Workers & Pages</strong> ➔{' '}
+                <code>ebook-reader</code> ➔ tab <strong>Settings</strong> ➔{' '}
+                <strong>Variables and Secrets</strong>.
               </li>
               <li>
-                Thêm <strong>Authorized Redirect URI</strong>:
-                <code className="block my-1.5 p-2 bg-slate-900 rounded-lg text-emerald-400 font-mono text-[11px] select-all break-all border border-white/5">
-                  https://ebook-reader.tqttno1.workers.dev/api/auth/callback
-                </code>
-              </li>
-              <li>
-                Vào <strong>Cloudflare Dashboard</strong> ➜ Workers & Pages ➜{' '}
-                <code>ebook-reader</code> ➜ <strong>Settings</strong> ➜{' '}
-                <strong>Variables and Secrets</strong>, thêm 2 Secret:
+                Đảm bảo có đủ 2 biến:
                 <div className="mt-1 space-y-0.5 text-slate-300 pl-2">
                   <div>
-                    • <code>GOOGLE_CLIENT_ID</code>
+                    • <code>GOOGLE_CLIENT_ID</code> (dán Google Client ID)
                   </div>
                   <div>
-                    • <code>GOOGLE_CLIENT_SECRET</code>
+                    • <code>GOOGLE_CLIENT_SECRET</code> (dán Google Client Secret)
                   </div>
                 </div>
+              </li>
+              <li>
+                Nếu đã thêm mà vẫn báo "Trống (0 biến)", bạn hãy <strong>chụp ảnh màn hình tab Settings ➔ Variables and Secrets</strong> để đối chiếu.
               </li>
             </ol>
           </div>
 
-          {/* Developer manual override toggle */}
-          <div>
+          {/* Quick manual input option for instant login */}
+          <div className="p-4 bg-blue-950/20 border border-blue-500/20 rounded-2xl">
             <button
               type="button"
               onClick={() => setShowManualInputs(!showManualInputs)}
-              className="text-[11px] text-slate-400 hover:text-slate-200 underline inline-flex items-center space-x-1"
+              className="w-full text-left text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center justify-between"
             >
-              <Key className="w-3 h-3" />
-              <span>
-                {showManualInputs
-                  ? 'Ẩn thiết lập Client ID thủ công'
-                  : 'Cấu hình Client ID thủ công (dành cho thử nghiệm local)'}
+              <span className="flex items-center space-x-1.5">
+                <Key className="w-4 h-4" />
+                <span>Hoặc dán Client ID trực tiếp vào đây để đăng nhập ngay</span>
+              </span>
+              <span className="text-[11px] underline">
+                {showManualInputs ? 'Ẩn' : 'Mở ô nhập'}
               </span>
             </button>
 
             {showManualInputs && (
-              <div className="mt-3 p-4 bg-slate-950 rounded-2xl border border-white/10 space-y-3 animate-in fade-in">
+              <div className="mt-3 space-y-3 animate-in fade-in pt-2 border-t border-blue-500/10">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
                     Google OAuth Client ID
                   </label>
                   <input
@@ -192,18 +226,9 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
                     className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                    Google API Key (Tùy chọn)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="AIzaSy..."
-                    value={inputApiKey}
-                    onChange={(e) => setInputApiKey(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
-                  />
-                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Dán Client ID của bạn vào ô trên rồi bấm nút xanh bên dưới để đăng nhập ngay mà không cần đợi Cloudflare.
+                </p>
               </div>
             )}
           </div>
@@ -213,9 +238,11 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
         <div className="px-6 py-4 border-t border-white/5 bg-slate-950/60 flex items-center justify-between">
           <button
             onClick={handleRefreshStatus}
-            className="px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
+            disabled={isRefreshing}
+            className="px-3.5 py-2 text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center space-x-1.5 rounded-xl hover:bg-slate-800"
           >
-            Làm mới trạng thái
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+            <span>{isRefreshing ? 'Đang kiểm tra...' : 'Làm mới trạng thái'}</span>
           </button>
 
           <button
