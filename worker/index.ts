@@ -3,6 +3,7 @@ export interface Env {
   GOOGLE_API_KEY?: string
   GOOGLE_CLIENT_SECRET?: string
   ASSETS?: { fetch: (request: Request) => Promise<Response> }
+  [key: string]: unknown
 }
 
 const SCOPES = [
@@ -22,6 +23,64 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;')
 }
 
+/**
+ * Robust helper to extract environment variables even if there are subtle differences
+ * in naming, casing, trailing spaces, or prefixes.
+ */
+function resolveEnvValue(env: Record<string, unknown>, targetNames: string[]): string {
+  if (!env || typeof env !== 'object') return ''
+
+  // 1. Direct exact matches
+  for (const name of targetNames) {
+    const val = env[name]
+    if (typeof val === 'string' && val.trim()) {
+      return val.trim()
+    }
+  }
+
+  // 2. Normalized matches (case-insensitive, strip punctuation/spaces)
+  const normalizedTargets = targetNames.map((n) => n.toLowerCase().replace(/[^a-z0-9]/g, ''))
+  for (const [key, val] of Object.entries(env)) {
+    if (typeof val === 'string' && val.trim()) {
+      const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+      if (normalizedTargets.includes(cleanKey)) {
+        return val.trim()
+      }
+    }
+  }
+
+  return ''
+}
+
+function getCredentials(env: Env) {
+  const envObj = env as Record<string, unknown>
+  const clientId = resolveEnvValue(envObj, [
+    'GOOGLE_CLIENT_ID',
+    'CLIENT_ID',
+    'VITE_GOOGLE_CLIENT_ID',
+    'google_client_id',
+    'clientId',
+  ])
+
+  const clientSecret = resolveEnvValue(envObj, [
+    'GOOGLE_CLIENT_SECRET',
+    'CLIENT_SECRET',
+    'VITE_GOOGLE_CLIENT_SECRET',
+    'google_client_secret',
+    'clientSecret',
+  ])
+
+  const apiKey = resolveEnvValue(envObj, [
+    'GOOGLE_API_KEY',
+    'API_KEY',
+    'VITE_GOOGLE_API_KEY',
+    'google_api_key',
+    'apiKey',
+  ])
+
+  return { clientId, clientSecret, apiKey }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -38,19 +97,23 @@ export default {
       return new Response(null, { headers: corsHeaders })
     }
 
+    const { clientId, clientSecret, apiKey } = getCredentials(env)
+
     // 1. API: Get public Auth status & config
     if (url.pathname === '/api/auth/config') {
-      const clientId = env.GOOGLE_CLIENT_ID || ''
-      const hasSecret = Boolean(env.GOOGLE_CLIENT_SECRET)
-      const apiKey = env.GOOGLE_API_KEY || ''
+      // List available keys (sanitized: excluding secret values)
+      const detectedKeys = Object.keys(env || {}).filter(
+        (k) => k !== 'ASSETS' && !k.toLowerCase().includes('secret')
+      )
 
       return new Response(
         JSON.stringify({
-          configured: Boolean(clientId && hasSecret),
+          configured: Boolean(clientId && clientSecret),
           hasClientId: Boolean(clientId),
-          hasSecret: hasSecret,
+          hasSecret: Boolean(clientSecret),
           clientId: clientId,
           apiKey: apiKey,
+          detectedKeys,
         }),
         { headers: corsHeaders }
       )
@@ -58,7 +121,6 @@ export default {
 
     // 2. API: Start OAuth 2.0 Login (Redirect to Google OAuth consent screen)
     if (url.pathname === '/api/auth/login') {
-      const clientId = env.GOOGLE_CLIENT_ID || ''
       if (!clientId) {
         return new Response(
           `<!DOCTYPE html>
@@ -154,9 +216,6 @@ export default {
       if (!code) {
         return new Response('Thiếu OAuth Authorization Code', { status: 400 })
       }
-
-      const clientId = env.GOOGLE_CLIENT_ID || ''
-      const clientSecret = env.GOOGLE_CLIENT_SECRET || ''
 
       if (!clientId || !clientSecret) {
         return new Response(
@@ -352,9 +411,6 @@ export default {
             headers: corsHeaders,
           })
         }
-
-        const clientId = env.GOOGLE_CLIENT_ID || ''
-        const clientSecret = env.GOOGLE_CLIENT_SECRET || ''
 
         if (!clientId || !clientSecret) {
           return new Response(
